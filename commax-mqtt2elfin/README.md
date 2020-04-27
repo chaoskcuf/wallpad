@@ -183,7 +183,7 @@ light:
     state_topic: "homenet/Light1/power/state"
     command_topic: "homenet/Light1/power/command"
 
-fan
+fan:
   - platform: mqtt
     name: "전열교환기"
     state_topic: "homenet/Fan1/power/state"
@@ -196,4 +196,10 @@ fan
       - medium
       - high
 
+sensor:
+  - platform: mqtt
+    name: "거실콘센트1"
+    device_class: "power"
+    state_topic: "homenet/Outlet1/watt/state"
+    unit_of_measurement: "W"
 </code></pre>
