@@ -26,7 +26,7 @@ def find_device(config):
     def on_connect(client, userdata, flags, rc):
         userdata = time.time() + 20
         if rc == 0:
-            log("MQTT connection successful!!")
+            log("Connected to MQTT broker..")
             log("Find devices for 20s..")
             client.subscribe('ew11/#', 0)
         else:
@@ -72,6 +72,9 @@ def find_device(config):
                 dev_info[key]['stateON'] = collected_list[key][1][16:]
         elif key == 'EV':
             dev_info[key]['Number'] = 0 if len(collected_list[key]) < 1 else 1
+        elif key == 'Outlet':
+            lists = list(set([hex_data[:4] for hex_data in collected_list[key] if len(hex_data) == 32]))
+            dev_info[key]['Number'] = len(lists)
 
     with open(share_dir + '/commax_found_device.json', 'w', encoding='utf-8') as make_file:
         json.dump(dev_info, make_file, indent="\t")
@@ -289,7 +292,20 @@ def do_work(config, device_list):
                             if data in DEVICE_LISTS['Fan'][1]['stateON']:
                                 await update_state('Fan', 0, 'ON')
                                 speed = DEVICE_LISTS['Fan'][1]['stateON'].index(data)
-                                await update_fan('Fan', 0, speed)
+                                await update_fan(0, speed)
+                        elif device_name == 'Outlet' and data.startswith(device_list['Outlet']['stateOFF'][:2]):
+                            num = DEVICE_LISTS[device_name]['Num']
+                            OutBreak = False
+                            for index in range(num):
+                                for onoff in ['OFF', 'ON']:
+                                    if data.startswith(DEVICE_LISTS[device_name][index+1]['state'+onoff][:8]):
+                                        await update_state(device_name, index, onoff)
+                                        OutBreak = True
+                                        if onoff == 'ON':
+                                            await update_outlet_value(index, data[10:14])
+                                if OutBreak:
+                                    break
+
                         else:
                             num = DEVICE_LISTS[device_name]['Num']
                             state = [DEVICE_LISTS[device_name][k+1]['stateOFF'] for k in range(num)] + [DEVICE_LISTS[device_name][k+1]['stateON'] for k in range(num)]
@@ -331,8 +347,8 @@ def do_work(config, device_list):
                 log('[DEBUG] {} is already set: {}'.format(deviceID, onoff))
         return
 
-    async def update_fan(device, idx, onoff):
-        deviceID = device + str(idx + 1)
+    async def update_fan(idx, onoff):
+        deviceID = 'Fan' + str(idx + 1)
         if onoff == 'ON' or onoff == 'OFF':
             state = 'power'
             key = deviceID + state
@@ -372,12 +388,26 @@ def do_work(config, device_list):
                     log('[DEBUG] {} is already set: {}'.format(key, val))
         return
 
+    async def update_outlet_value(idx, val):
+        deviceID = 'Outlet' + str(idx + 1)
+        try:
+            val = '%.1f' % float(int(val)/10)
+            topic = STATE_TOPIC.format(deviceID, 'watt')
+            mqtt_client.publish(topic, val.encode())
+            if debug:
+                log('[LOG] MQTT >> HA : {} -> {}'.format(topic, val))
+        except:
+            pass
+
     def on_connect(client, userdata, flags, rc):
         if rc == 0:
-            log("MQTT connection successful!!")
+            log("Connected to MQTT broker..")
             client.subscribe([(HA_TOPIC + '/#', 0), (ELFIN_TOPIC + '/recv', 0), (ELFIN_TOPIC + '/send', 1)])
             if 'EV' in DEVICE_LISTS:
                 asyncio.run(update_state('EV', 0, 'OFF'))
+            if 'Outlet' in DEVICE_LISTS:
+                for index in range(DEVICE_LISTS['Outlet']['Num']):
+                    asyncio.run(update_outlet_value(index, '0'))
         else:
             errcode = {1: 'Connection refused - incorrect protocol version',
                        2: 'Connection refused - invalid client identifier',
@@ -411,7 +441,7 @@ def do_work(config, device_list):
                     if elfin_log:
                         log('[SIGNAL] Send a signal: {}'.format(send_data))
                     mqtt_client.publish(ELFIN_SEND_TOPIC, bytes.fromhex(send_data['sendcmd']))
-                    await asyncio.sleep(0.1)
+                    # await asyncio.sleep(0.01)
                     if send_data['count'] < 5:
                         send_data['count'] = send_data['count'] + 1
                         QUEUE.append(send_data)
@@ -421,7 +451,7 @@ def do_work(config, device_list):
             except Exception as err:
                 log('[ERROR] send_to_elfin(): {}'.format(err))
                 return True
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(0.01)
         # return
 
     loop = asyncio.get_event_loop()
