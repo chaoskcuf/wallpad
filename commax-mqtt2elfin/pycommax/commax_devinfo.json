@@ -60,7 +60,7 @@
     "speedNUM": 8,
 
     "statePREFIX": "76",
-    "stateOFF": "F6000100000000F7",
+    "stateOFF": "F6040100000000FB",
     "stateON": "F6040101000000FC"
   },
   "EV": {
