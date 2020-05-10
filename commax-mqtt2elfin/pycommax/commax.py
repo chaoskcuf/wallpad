@@ -108,7 +108,7 @@ def do_work(config, device_list):
         if input_hex:
             try:
                 change = int(change)
-                input_hex = '{}{}{}'.format(input_hex[:change - 1], int(input_hex[change - 1]) + k, input_hex[change:])
+                input_hex = '{}{}{}'.format(input_hex[:change - 1], format(int(input_hex[change - 1]) + k, 'X'), input_hex[change:])
                 return checksum(input_hex)
             except:
                 return input_hex
@@ -293,6 +293,8 @@ def do_work(config, device_list):
                                 await update_state('Fan', 0, 'ON')
                                 speed = DEVICE_LISTS['Fan'][1]['stateON'].index(data)
                                 await update_fan(0, speed)
+                            elif data in DEVICE_LISTS['Fan'][1]['stateOFF']:
+                                await update_state('Fan', 0, 'OFF')
                         elif device_name == 'Outlet' and data.startswith(device_list['Outlet']['stateOFF'][:2]):
                             num = DEVICE_LISTS[device_name]['Num']
                             OutBreak = False
@@ -355,7 +357,7 @@ def do_work(config, device_list):
         else:
             try:
                 speed_list = ['low', 'medium', 'high']
-                onoff = speed_list[int(onoff)-1]
+                onoff = speed_list[int(onoff)]
                 state = 'speed'
                 key = deviceID + state
             except:
