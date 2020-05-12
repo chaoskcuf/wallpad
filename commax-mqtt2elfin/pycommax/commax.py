@@ -2,6 +2,7 @@ import paho.mqtt.client as mqtt
 import json
 import time
 import asyncio
+import re
 
 share_dir = '/share'
 config_dir = '/data'
@@ -115,7 +116,7 @@ def do_work(config, device_list):
         else:
             return None
 
-    def make_hex_temp(k, curTemp, setTemp, state):  # 온도조절기 16자리 (8byte) hex 만들기
+    def make_hex_temp(k, curTemp, setTemp, state):
         if state == 'OFF' or state == 'ON' or state == 'CHANGE':
             tmp_hex = device_list['Thermo'].get('command' + state)
             change = device_list['Thermo'].get('commandNUM')
@@ -177,9 +178,12 @@ def do_work(config, device_list):
     COLLECTDATA = {'cond': find_signal, 'data': [], 'EVtime': time.time(), 'LastRecv': time.time_ns()}
 
     async def recv_from_HA(topics, value):
+
+        regex = re.compile("(\D+)(\d+)")
+        matchobj = regex.search(topics[1])
         key = topics[1] + topics[2]
-        device = topics[1][:-1]
-        idx = int(topics[1][-1])
+        device = matchobj.group(1)
+        idx = int(matchobj.group(2))
         if mqtt_log:
             log('[LOG] HA >> MQTT : {} -> {}'.format('/'.join(topics), value))
         try:
