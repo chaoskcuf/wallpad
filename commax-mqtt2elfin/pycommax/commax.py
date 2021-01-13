@@ -288,7 +288,7 @@ def do_work(config, device_list):
                             onoffNUM = device_list['Thermo']['stateONOFFNUM']
                             staNUM = device_list['Thermo']['stateNUM']
                             index = int(data[staNUM - 1]) - 1
-                            onoff = 'ON' if int(data[onoffNUM - 1]) > 0 else 'OFF'
+                            onoff = 'ON' if int(data[onoffNUM - 1]) == 1 or int(data[onoffNUM - 1]) == 5  else 'OFF'
 
                             await update_state(device_name, index, onoff)
                             await update_temperature(index, curT, setT)
